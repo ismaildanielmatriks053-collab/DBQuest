@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">DBQuest</string>
+    <string name="tagline">Master Databases Through Play, Diagrams &amp; AI</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="continue_as_visitor">Continue as Visitor</string>
+    <string name="sign_in_to_save">Sign in to Save</string>
+    <string name="sign_out">Sign out</string>
+    <string name="nav_home">Arena</string>
+    <string name="nav_diagram">Draw.io Lab</string>
+    <string name="nav_quiz">Speed Quiz</string>
+    <string name="nav_tutor">AI Tutor</string>
+    <string name="analyze_diagram">Analyze Diagram with AI</string>
+    <string name="load_template">Load Starter</string>
+    <string name="reset_canvas">Reset</string>
+    <string name="create_lecturer_quiz">Lecturer Studio</string>
+    <string name="publish_quiz">Publish Quiz</string>
+    <string name="ask_tutor_hint">Ask anything about SQL, ERDs, normalization…</string>
+</resources>

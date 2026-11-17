@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Player gamification profile storing XP points, streaks, and database mastery progress.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the player." },
+        "displayName": { "type": "string", "description": "Player display name." },
+        "totalPoints": { "type": "integer", "description": "Total accumulated XP points." },
+        "quizzesCompleted": { "type": "integer", "description": "Total number of completed quizzes." },
+        "quizzesWon": { "type": "integer", "description": "Total number of won quizzes." },
+        "diagramsSolved": { "type": "integer", "description": "Total Draw.io diagram challenges passed." },
+        "currentStreak": { "type": "integer", "description": "Current win streak." },
+        "bestStreak": { "type": "integer", "description": "Best recorded win streak." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on last update (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "totalPoints", "quizzesCompleted", "quizzesWon", "diagramsSolved", "currentStreak", "bestStreak", "createdAt", "updatedAt"]
+    },
+    "LecturerQuiz": {
+      "title": "LecturerQuiz",
+      "description": "Fast-paced database quiz authored by a lecturer.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "description": "Firebase Auth UID of the authoring lecturer." },
+        "lecturerName": { "type": "string", "description": "Display name of the authoring lecturer." },
+        "lecturerTitle": { "type": "string", "description": "Academic title or department of the lecturer." },
+        "title": { "type": "string", "description": "Quiz title." },
+        "topic": { "type": "string", "description": "Database topic category." },
+        "difficulty": { "type": "string", "enum": ["Beginner", "Intermediate", "Advanced"], "description": "Quiz difficulty tier." },
+        "visibility": { "type": "string", "enum": ["public"], "description": "Visibility scope for shared lecturer quizzes." },
+        "timePerQuestionSec": { "type": "integer", "description": "Countdown timer seconds per question." },
+        "passThresholdPercent": { "type": "integer", "description": "Minimum accuracy percentage required to win." },
+        "xpReward": { "type": "integer", "description": "Base XP reward upon completion." },
+        "questions": { "type": "array", "description": "Bounded list (1-15) of multiple-choice database questions." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on update (FieldValue.serverTimestamp())." }
+      },
+      "required": ["creatorId", "lecturerName", "lecturerTitle", "title", "topic", "difficulty", "visibility", "timePerQuestionSec", "passThresholdPercent", "xpReward", "questions", "createdAt", "updatedAt"]
+    },
+    "QuizResultRecord": {
+      "title": "QuizResultRecord",
+      "description": "Immutable record of a player completing a lecturer quiz.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner player UID." },
+        "quizId": { "type": "string", "description": "Referenced quiz document ID." },
+        "quizTitle": { "type": "string", "description": "Snapshot of quiz title." },
+        "lecturerName": { "type": "string", "description": "Snapshot of lecturer name." },
+        "score": { "type": "integer", "description": "Fast-paced points achieved." },
+        "correctCount": { "type": "integer", "description": "Number of correct answers." },
+        "totalQuestions": { "type": "integer", "description": "Total number of questions in the quiz." },
+        "accuracyPercent": { "type": "integer", "description": "Accuracy percentage (0-100)." },
+        "outcome": { "type": "string", "enum": ["WIN", "LOSS"], "description": "Final quiz outcome." },
+        "pointsEarned": { "type": "integer", "description": "XP points awarded to player." },
+        "maxStreak": { "type": "integer", "description": "Highest combo streak achieved during the quiz." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on completion (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "quizId", "quizTitle", "lecturerName", "score", "correctCount", "totalQuestions", "accuracyPercent", "outcome", "pointsEarned", "maxStreak", "createdAt"]
+    },
+    "DiagramAttempt": {
+      "title": "DiagramAttempt",
+      "description": "AI-evaluated Draw.io database diagram attempt.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner player UID." },
+        "challengeId": { "type": "string", "description": "Diagram challenge identifier." },
+        "challengeTitle": { "type": "string", "description": "Diagram challenge title." },
+        "verdictTitle": { "type": "string", "description": "AI verdict headline." },
+        "feedbackSummary": { "type": "string", "description": "AI explanation and architectural critique." },
+        "score": { "type": "integer", "description": "AI score (0-100)." },
+        "passed": { "type": "boolean", "description": "Whether the diagram passed the challenge." },
+        "xpAwarded": { "type": "integer", "description": "XP awarded for the diagram submission." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on evaluation (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "challengeId", "challengeTitle", "verdictTitle", "feedbackSummary", "score", "passed", "xpAwarded", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private player profile and XP totals."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/LecturerQuiz" },
+      "description": "Publicly playable quizzes authored by lecturers."
+    },
+    "/users/{userId}/quizResults/{resultId}": {
+      "schema": { "$ref": "#/entities/QuizResultRecord" },
+      "description": "Player's completed fast-paced quiz history."
+    },
+    "/users/{userId}/diagramAttempts/{attemptId}": {
+      "schema": { "$ref": "#/entities/DiagramAttempt" },
+      "description": "Player's AI-analyzed Draw.io diagram challenge history."
+    }
+  }
+}
