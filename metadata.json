@@ -1,5 +1,5 @@
 {
-  "name": "DBQuest",
+  "name": "DATA QUESTZ",
   "description": "A gamified database learning app with an embedded Draw.io diagram editor analyzed by AI, fast-paced lecturer quizzes with win/loss effects, and a Gemini AI database tutor.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

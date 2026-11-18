@@ -225,170 +225,72 @@ object DiagramChallengesCatalog {
 object StarterQuizCatalog {
     val starterQuizzes: List<LecturerQuiz> = listOf(
         LecturerQuiz(
-            id = "starter_joins_vance",
-            creatorId = "lecturer_vance",
-            lecturerName = "Prof. Elena Vance",
-            lecturerTitle = "Relational Systems Chair",
-            title = "SQL Joins Blitz",
-            topic = "SQL Joins",
+            id = "starter_sql_ddl_haida",
+            creatorId = "lecturer_haida",
+            lecturerName = "Madam Haida",
+            lecturerTitle = "SQL & Database Lecturer",
+            title = "SQL Essentials & DDL Blitz",
+            topic = "SQL & DDL",
             difficulty = "Beginner",
             visibility = "public",
             timePerQuestionSec = 15L,
             passThresholdPercent = 60L,
-            xpReward = 200L,
+            xpReward = 220L,
             questions = listOf(
                 QuizQuestion(
-                    prompt = "Which JOIN returns every row from the left table and NULLs for unmatched right rows?",
-                    options = listOf("INNER JOIN", "LEFT OUTER JOIN", "CROSS JOIN", "NATURAL JOIN"),
-                    correctIndex = 1L,
-                    explanation = "LEFT OUTER JOIN preserves all rows from the left table even if no matching row exists on the right."
-                ),
-                QuizQuestion(
-                    prompt = "What does a CROSS JOIN between a 4-row table and a 5-row table produce?",
-                    options = listOf("9 rows", "4 rows", "20 rows", "5 rows"),
-                    correctIndex = 2L,
-                    explanation = "CROSS JOIN computes the Cartesian product: 4 × 5 = 20 rows."
-                ),
-                QuizQuestion(
-                    prompt = "Which clause filters grouped rows AFTER aggregation (like COUNT or SUM)?",
-                    options = listOf("WHERE", "HAVING", "ORDER BY", "DISTINCT"),
-                    correctIndex = 1L,
-                    explanation = "WHERE filters rows before grouping; HAVING filters groups after GROUP BY."
-                ),
-                QuizQuestion(
-                    prompt = "When joining a table to itself (e.g., Employee -> Manager), what must you use?",
-                    options = listOf("Table aliases", "A VIEW", "A TRIGGER", "UNION ALL"),
+                    prompt = "What does DDL stand for in SQL?",
+                    options = listOf(
+                        "Data Definition Language",
+                        "Data Deletion Logic",
+                        "Database Direct Link",
+                        "Dynamic Data Layer"
+                    ),
                     correctIndex = 0L,
-                    explanation = "Self-joins require distinct table aliases (e.g., e and m) to disambiguate columns."
+                    explanation = "DDL stands for Data Definition Language, which defines and modifies database structures such as tables, schemas, and indexes."
                 ),
                 QuizQuestion(
-                    prompt = "Which JOIN excludes rows that do not have a match in both tables?",
-                    options = listOf("FULL OUTER JOIN", "LEFT JOIN", "INNER JOIN", "RIGHT JOIN"),
+                    prompt = "Which set lists the main DDL commands used to define or modify database structures?",
+                    options = listOf(
+                        "SELECT, INSERT, UPDATE",
+                        "CREATE, ALTER, DROP, TRUNCATE",
+                        "GRANT, REVOKE, DENY",
+                        "COMMIT, ROLLBACK, SAVEPOINT"
+                    ),
+                    correctIndex = 1L,
+                    explanation = "CREATE, ALTER, DROP, and TRUNCATE are the primary DDL commands for creating, changing, and removing tables or schemas."
+                ),
+                QuizQuestion(
+                    prompt = "Which DDL command adds a new column to an existing SQL table?",
+                    options = listOf(
+                        "UPDATE TABLE",
+                        "MODIFY COLUMN",
+                        "ALTER TABLE",
+                        "INSERT COLUMN"
+                    ),
                     correctIndex = 2L,
-                    explanation = "INNER JOIN returns only the intersection of matching rows from both tables."
-                )
-            )
-        ),
-        LecturerQuiz(
-            id = "starter_normalization_chen",
-            creatorId = "lecturer_chen",
-            lecturerName = "Dr. Marcus Chen",
-            lecturerTitle = "Data Modeling Lab",
-            title = "Normalization & Keys Gauntlet",
-            topic = "Normalization",
-            difficulty = "Intermediate",
-            visibility = "public",
-            timePerQuestionSec = 15L,
-            passThresholdPercent = 60L,
-            xpReward = 260L,
-            questions = listOf(
-                QuizQuestion(
-                    prompt = "First Normal Form (1NF) strictly requires that every column contains:",
-                    options = listOf("Only integers", "Atomic (indivisible) values", "Foreign keys", "No NULLs"),
-                    correctIndex = 1L,
-                    explanation = "1NF eliminates repeating groups and multi-valued attributes so each cell holds an atomic value."
+                    explanation = "ALTER TABLE updates an existing table's schema, such as adding, renaming, or removing columns and constraints."
                 ),
                 QuizQuestion(
-                    prompt = "Second Normal Form (2NF) eliminates which kind of dependency?",
-                    options = listOf("Transitive dependency", "Partial dependency on a composite PK", "Reflexive dependency", "Multi-valued dependency"),
-                    correctIndex = 1L,
-                    explanation = "In 2NF, every non-key attribute must depend on the ENTIRE composite primary key, not just part of it."
-                ),
-                QuizQuestion(
-                    prompt = "Third Normal Form (3NF) removes which anomaly source?",
-                    options = listOf("Transitive dependencies (non-key -> non-key)", "Repeating columns", "Duplicate primary keys", "Missing indexes"),
+                    prompt = "What is the key difference between DROP TABLE and TRUNCATE TABLE?",
+                    options = listOf(
+                        "DROP removes both table structure and data; TRUNCATE deletes all rows but keeps the table",
+                        "TRUNCATE deletes the whole database; DROP deletes one row",
+                        "DROP only works on views; TRUNCATE only works on indexes",
+                        "They perform the exact same action"
+                    ),
                     correctIndex = 0L,
-                    explanation = "3NF requires no non-prime attribute to transitively depend on a candidate key."
+                    explanation = "DROP TABLE permanently removes the table definition and its data, whereas TRUNCATE TABLE removes all rows while preserving the table structure."
                 ),
                 QuizQuestion(
-                    prompt = "How do you represent a Many-to-Many (M:N) relationship in a relational database?",
-                    options = listOf("Store comma-separated IDs", "Add a junction/bridge table with two FKs", "Merge both tables into one", "Use a CHECK constraint"),
-                    correctIndex = 1L,
-                    explanation = "An associative (junction) table breaks M:N into two clean 1:N relationships."
-                ),
-                QuizQuestion(
-                    prompt = "A foreign key enforces which database integrity rule?",
-                    options = listOf("Entity integrity", "Domain integrity", "Referential integrity", "User-defined integrity"),
+                    prompt = "Which SQL category handles querying and modifying table rows (SELECT, INSERT, UPDATE, DELETE)?",
+                    options = listOf(
+                        "DDL (Data Definition Language)",
+                        "DCL (Data Control Language)",
+                        "DML (Data Manipulation Language)",
+                        "TCL (Transaction Control Language)"
+                    ),
                     correctIndex = 2L,
-                    explanation = "Referential integrity ensures a foreign key value always points to an existing primary key or is NULL."
-                )
-            )
-        ),
-        LecturerQuiz(
-            id = "starter_acid_patel",
-            creatorId = "lecturer_patel",
-            lecturerName = "Prof. Aisha Patel",
-            lecturerTitle = "Distributed Databases",
-            title = "ACID & Transactions Sprint",
-            topic = "Transactions",
-            difficulty = "Intermediate",
-            visibility = "public",
-            timePerQuestionSec = 14L,
-            passThresholdPercent = 60L,
-            xpReward = 280L,
-            questions = listOf(
-                QuizQuestion(
-                    prompt = "Which ACID property guarantees a transaction either completes fully or rolls back completely?",
-                    options = listOf("Consistency", "Isolation", "Atomicity", "Durability"),
-                    correctIndex = 2L,
-                    explanation = "Atomicity means 'all or nothing' execution for every operation inside a transaction."
-                ),
-                QuizQuestion(
-                    prompt = "What does Durability ensure once a COMMIT succeeds?",
-                    options = listOf("Zero lock contention", "Changes survive power loss or crashes", "Queries run in O(1)", "Schema never changes"),
-                    correctIndex = 1L,
-                    explanation = "Durability persists committed state to non-volatile storage (often via Write-Ahead Logging)."
-                ),
-                QuizQuestion(
-                    prompt = "Reading uncommitted changes from another concurrent transaction that later rolls back is called:",
-                    options = listOf("Phantom read", "Dirty read", "Deadlock", "Lost update"),
-                    correctIndex = 1L,
-                    explanation = "A dirty read occurs when transaction T2 reads data modified by T1 before T1 commits."
-                ),
-                QuizQuestion(
-                    prompt = "Which SQL isolation level is the strictest and prevents dirty, non-repeatable, and phantom reads?",
-                    options = listOf("READ UNCOMMITTED", "READ COMMITTED", "REPEATABLE READ", "SERIALIZABLE"),
-                    correctIndex = 3L,
-                    explanation = "SERIALIZABLE ensures concurrent transactions yield the same result as some serial execution."
-                )
-            )
-        ),
-        LecturerQuiz(
-            id = "starter_indexing_oconnor",
-            creatorId = "lecturer_oconnor",
-            lecturerName = "Dr. Liam O'Connor",
-            lecturerTitle = "Query Optimization",
-            title = "Indexing & Performance Rush",
-            topic = "Indexing",
-            difficulty = "Advanced",
-            visibility = "public",
-            timePerQuestionSec = 12L,
-            passThresholdPercent = 75L,
-            xpReward = 350L,
-            questions = listOf(
-                QuizQuestion(
-                    prompt = "What data structure do most relational databases use for default B-Tree indexes?",
-                    options = listOf("Balanced multi-way search tree (B+ Tree)", "Singly linked list", "Binary heap", "Adjacency matrix"),
-                    correctIndex = 0L,
-                    explanation = "B+ Trees keep sorted keys in leaf nodes linked sequentially for fast lookups and range scans."
-                ),
-                QuizQuestion(
-                    prompt = "What is the main trade-off of adding many indexes to a write-heavy table?",
-                    options = listOf("SELECT becomes slower", "INSERT/UPDATE/DELETE become slower", "Foreign keys stop working", "Rows are deleted"),
-                    correctIndex = 1L,
-                    explanation = "Every write must update the table AND keep all associated index structures synchronized."
-                ),
-                QuizQuestion(
-                    prompt = "A composite index on (last_name, first_name) best accelerates which WHERE clause?",
-                    options = listOf("WHERE first_name = 'Ada'", "WHERE last_name = 'Lovelace'", "WHERE age > 30", "WHERE last_name LIKE '%lace'"),
-                    correctIndex = 1L,
-                    explanation = "Due to the leftmost-prefix rule, an index on (last_name, first_name) directly speeds up queries filtering on last_name."
-                ),
-                QuizQuestion(
-                    prompt = "Which index type is optimal ONLY for exact equality checks (=), not range queries (> or BETWEEN)?",
-                    options = listOf("B+ Tree index", "Hash index", "Clustered index", "Bitmap range index"),
-                    correctIndex = 1L,
-                    explanation = "Hash indexes provide O(1) equality lookups but do not preserve key ordering for range scans."
+                    explanation = "DML (Data Manipulation Language) is used to retrieve and manipulate data stored inside existing tables."
                 )
             )
         )

@@ -113,7 +113,7 @@ fun HomeScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (isVisitorMode) "DBQUEST • VISITOR SESSION" else "DBQUEST ARENA",
+                            text = if (isVisitorMode) "DATA QUESTZ • VISITOR SESSION" else "DATA QUESTZ ARENA",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (isVisitorMode) AmberGold else CyanPrimary
                         )

@@ -108,6 +108,7 @@ class GameRepository(
                 .snapshots()
                 .map { snapshot ->
                     snapshot.toObjects(LecturerQuiz::class.java, DocumentSnapshot.ServerTimestampBehavior.ESTIMATE)
+                        .filterNot { it.id in DEPRECATED_STARTER_QUIZ_IDS }
                         .sortedByDescending { it.createdAt?.seconds ?: 0L }
                 }
                 .catch { error ->
@@ -130,20 +131,32 @@ class GameRepository(
             val uid = requireUserId()
             val existing = db.collection("quizzes")
                 .whereEqualTo("visibility", "public")
-                .limit(1)
                 .get()
                 .await()
-            if (!existing.isEmpty) {
-                return Result.success(Unit)
-            }
 
             val starters = buildStarterLecturerQuizzes(uid)
             val batch = db.batch()
-            starters.forEach { (docId, payload) ->
-                val ref = db.collection("quizzes").document(docId)
-                batch.set(ref, payload)
+            var hasChanges = false
+
+            existing.documents.forEach { doc ->
+                if (doc.id in DEPRECATED_STARTER_QUIZ_IDS && doc.getString("creatorId") == uid) {
+                    batch.delete(doc.reference)
+                    hasChanges = true
+                }
             }
-            batch.commit().await()
+
+            val existingIds = existing.documents.map { it.id }.toSet()
+            starters.forEach { (docId, payload) ->
+                if (docId !in existingIds) {
+                    val ref = db.collection("quizzes").document(docId)
+                    batch.set(ref, payload)
+                    hasChanges = true
+                }
+            }
+
+            if (hasChanges) {
+                batch.commit().await()
+            }
             Result.success(Unit)
         } catch (e: CancellationException) {
             throw e
@@ -151,6 +164,15 @@ class GameRepository(
             handleFirestoreError(e, OperationType.CREATE, path)
             Result.failure(e)
         }
+    }
+
+    private companion object {
+        val DEPRECATED_STARTER_QUIZ_IDS = setOf(
+            "starter_joins_vance",
+            "starter_normalization_chen",
+            "starter_acid_patel",
+            "starter_indexing_oconnor"
+        )
     }
 
     suspend fun publishLecturerQuiz(

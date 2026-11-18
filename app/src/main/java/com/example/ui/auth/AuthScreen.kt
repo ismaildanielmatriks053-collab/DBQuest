@@ -109,7 +109,7 @@ fun AuthScreen(
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.img_hero_quest_1794908358138),
-                    contentDescription = "DBQuest cyber-blueprint database art",
+                    contentDescription = "DATA QUESTZ cyber-blueprint database art",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )

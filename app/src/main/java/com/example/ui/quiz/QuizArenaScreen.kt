@@ -1029,7 +1029,7 @@ private fun LecturerStudioView(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var lecturerName by remember { mutableStateOf(defaultLecturerName.ifBlank { "Prof. DB" }) }
+    var lecturerName by remember { mutableStateOf(defaultLecturerName.ifBlank { "Madam Haida" }) }
     var lecturerTitle by remember { mutableStateOf("Database Systems Lecturer") }
     var quizTitle by remember { mutableStateOf("") }
     var topic by remember { mutableStateOf("SQL Queries") }

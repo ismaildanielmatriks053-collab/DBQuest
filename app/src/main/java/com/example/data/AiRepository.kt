@@ -64,7 +64,7 @@ class AiRepository {
             },
             systemInstruction = content {
                 text(
-                    "You are Oracle, the DBQuest AI Database Tutor. Help students master relational databases, SQL queries, " +
+                    "You are Oracle, the DATA QUESTZ AI Database Tutor. Help students master relational databases, SQL queries, " +
                         "Entity-Relationship (ER) modeling, normalization (1NF, 2NF, 3NF, BCNF), ACID transactions, and indexing. " +
                         "Keep explanations crisp, visual, and practical with short SQL or schema examples. Encourage active learning."
                 )
@@ -77,10 +77,10 @@ class AiRepository {
     private fun getOrCreateChat(): Chat {
         return tutorChat ?: tutorModel.startChat(
             history = listOf(
-                content("user") { text("Hi Oracle! I'm playing DBQuest to master databases.") },
+                content("user") { text("Hi Oracle! I'm playing DATA QUESTZ to master databases.") },
                 content("model") {
                     text(
-                        "Welcome to DBQuest! I'm Oracle, your Database Systems Tutor. " +
+                        "Welcome to DATA QUESTZ! I'm Oracle, your Database Systems Tutor. " +
                             "Ask me about SQL joins, ER diagrams in Draw.io, normalization (1NF–3NF), ACID transactions, or indexing — let's level up your schema skills!"
                     )
                 }

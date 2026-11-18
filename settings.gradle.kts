@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "DBQuest"
+rootProject.name = "DATA QUESTZ"
 
 include(":app")
