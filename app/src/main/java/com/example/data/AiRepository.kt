@@ -11,10 +11,13 @@ import com.google.firebase.ai.type.Schema
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 
@@ -44,10 +47,11 @@ class AiRepository {
                 responseMimeType = "application/json"
                 responseSchema = diagramAnalysisSchema
                 temperature = 0.2f
+                maxOutputTokens = 900
             },
             systemInstruction = content {
                 text(
-                    "You are a strict yet encouraging Database Systems Professor grading a student's Draw.io ER/Relational diagram. " +
+                    "You are a concise, encouraging Database Systems Professor grading a student's Draw.io ER/Relational diagram. " +
                         "Inspect both the rendered diagram image (if provided) and the Draw.io mxGraph XML structure. " +
                         "Check for required entities, Primary Keys (PK), Foreign Keys (FK), junction/associative tables for M:N relationships, and valid connectors. " +
                         "Award score >= 65 and passed = true only if the student actually modeled the core entities and relationships beyond the starter stub."
@@ -56,17 +60,20 @@ class AiRepository {
         )
     }
 
+    // Use ultra-fast Gemini Flash-Lite for interactive real-time tutor chat to avoid slow TTFT/timeouts
     private val tutorModel by lazy {
         Firebase.ai.generativeModel(
-            modelName = "gemini-3.8-flash",
+            modelName = "gemini-3.5-flash-lite",
             generationConfig = generationConfig {
                 temperature = 0.6f
+                maxOutputTokens = 700
             },
             systemInstruction = content {
                 text(
                     "You are Oracle, the DATA QUESTZ AI Database Tutor. Help students master relational databases, SQL queries, " +
                         "Entity-Relationship (ER) modeling, normalization (1NF, 2NF, 3NF, BCNF), ACID transactions, and indexing. " +
-                        "Keep explanations crisp, visual, and practical with short SQL or schema examples. Encourage active learning."
+                        "Keep replies crisp, clear, and concise (under 180 words unless asked for deep detail) with short SQL or schema examples. " +
+                        "Do not use raw markdown asterisks such as **bold**; write clean plain text with clear line breaks."
                 )
             }
         )
@@ -97,7 +104,10 @@ class AiRepository {
         diagramBitmap: Bitmap?,
         mxGraphXml: String?
     ): DiagramAnalysisResult {
-        val cleanedXml = mxGraphXml?.take(14_000).orEmpty()
+        val scaledBitmap = withContext(Dispatchers.IO) {
+            diagramBitmap?.let { downscaleBitmap(it, maxDimension = 1024) }
+        }
+        val cleanedXml = mxGraphXml?.take(10_000).orEmpty()
         val promptText = buildString {
             appendLine("Challenge Title: ${challenge.title}")
             appendLine("Difficulty: ${challenge.difficulty}")
@@ -118,8 +128,8 @@ class AiRepository {
             val response = withTimeout(60_000L) {
                 diagramModel.generateContent(
                     content {
-                        if (diagramBitmap != null) {
-                            image(diagramBitmap)
+                        if (scaledBitmap != null) {
+                            image(scaledBitmap)
                         }
                         text(promptText)
                     }
@@ -162,7 +172,7 @@ class AiRepository {
             )
         } catch (e: TimeoutCancellationException) {
             Log.e(TAG, "Diagram analysis timed out", e)
-            throw IllegalStateException("AI analysis timed out after 60 seconds. Please try again.")
+            throw IllegalStateException("AI analysis timed out after 60 seconds. Check your internet connection and try again.")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -186,15 +196,27 @@ class AiRepository {
         if (accumulated.isBlank()) {
             throw IllegalStateException("Gemini returned an empty reply.")
         }
-    }.catch { e ->
+    }.flowOn(Dispatchers.IO).catch { e ->
         if (e is CancellationException && e !is TimeoutCancellationException) {
             throw e
         }
+        // Reset chat session on failure so a stalled/timed-out turn does not block future messages
+        tutorChat = null
         Log.e(TAG, "Tutor chat stream failed", e)
         throw when (e) {
-            is TimeoutCancellationException -> IllegalStateException("Tutor response timed out. Please try again.")
+            is TimeoutCancellationException -> IllegalStateException("Tutor response timed out after 60s. Check your network and try again.")
             else -> IllegalStateException(e.localizedMessage ?: "Failed to get response from Gemini Tutor.")
         }
+    }
+
+    private fun downscaleBitmap(source: Bitmap, maxDimension: Int): Bitmap {
+        val w = source.width
+        val h = source.height
+        if (w <= maxDimension && h <= maxDimension) return source
+        val scale = minOf(maxDimension.toFloat() / w, maxDimension.toFloat() / h)
+        val newW = (w * scale).toInt().coerceAtLeast(1)
+        val newH = (h * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(source, newW, newH, true)
     }
 
     private companion object {

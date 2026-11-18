@@ -189,7 +189,7 @@ class MainViewModel(
             ChatMessage(
                 id = "welcome_oracle",
                 isFromUser = false,
-                text = "Hey there, DBA! I'm **Oracle**, your Gemini Database Tutor.\n\nAsk me anything about **ER diagrams**, **1NF–3NF normalization**, **SQL Joins**, **ACID transactions**, or **B+ Tree indexing**!"
+                text = "Hey there, DBA! I'm Oracle, your Gemini Database Tutor.\n\nAsk me anything about ER diagrams, 1NF–3NF normalization, SQL Joins, ACID transactions, or B+ Tree indexing!"
             )
         )
     )

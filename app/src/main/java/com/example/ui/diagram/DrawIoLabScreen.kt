@@ -7,7 +7,6 @@ import android.graphics.Canvas
 import android.os.Build
 import android.util.Base64
 import android.util.Log
-import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
@@ -50,7 +49,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -61,6 +59,8 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -97,10 +97,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-// Lightweight embed URL disabling third-party cloud connectors and bulky stencil bundles
-// to keep Chromium WebView renderer memory low on Android devices and emulators.
-private const val DRAWIO_EMBED_URL =
-    "https://embed.diagrams.net/?embed=1&ui=dark&spin=1&proto=json&configure=1&noSaveBtn=1&noExitBtn=1&stealth=1&gapi=0&db=0&od=0&gh=0&gl=0&tr=0"
+private const val DRAWIO_BASE_URL = "https://appassets.androidplatform.net/"
+private const val DRAWIO_IFRAME_URL =
+    "https://embed.diagrams.net/?embed=1&ui=dark&spin=1&proto=json&configure=1&libraries=1&noSaveBtn=1&noExitBtn=1&stealth=1&gapi=0&db=0&od=0&gh=0&gl=0&tr=0"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,18 +115,19 @@ fun DrawIoLabScreen(
     val scope = rememberCoroutineScope()
 
     var showBrief by remember { mutableStateOf(false) }
-    var useLocalFallbackCanvas by remember { mutableStateOf(false) }
-    var rendererCrashFallbackNotice by remember { mutableStateOf(false) }
+    var useOfflineFallback by remember { mutableStateOf(false) }
+    var webViewInstanceKey by remember { mutableIntStateOf(0) }
+    var crashRetryCount by remember { mutableIntStateOf(0) }
     var isEditorReady by remember { mutableStateOf(false) }
     var webError by remember { mutableStateOf<String?>(null) }
     var latestXml by remember(selectedChallenge.id) { mutableStateOf(selectedChallenge.starterXml) }
     var isExporting by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
-    // Reload starter XML into Draw.io whenever challenge changes and editor is ready
-    LaunchedEffect(selectedChallenge.id, isEditorReady, useLocalFallbackCanvas) {
-        if (!useLocalFallbackCanvas && isEditorReady) {
-            sendDrawIoLoad(webViewRef, selectedChallenge.starterXml)
+    // Load current challenge XML into Draw.io whenever the challenge changes and Draw.io is ready
+    LaunchedEffect(selectedChallenge.id, isEditorReady, useOfflineFallback) {
+        if (!useOfflineFallback && isEditorReady) {
+            sendDrawIoLoad(webViewRef, latestXml)
         }
     }
 
@@ -144,7 +144,7 @@ fun DrawIoLabScreen(
             .background(MidnightBg)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        // Header + Mode Switcher + Challenge Selector
+        // Header + Difficulty
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -168,40 +168,6 @@ fun DrawIoLabScreen(
         }
 
         Spacer(modifier = Modifier.height(6.dp))
-
-        // Editor mode switch + Challenge chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            FilterChip(
-                selected = !useLocalFallbackCanvas,
-                onClick = {
-                    rendererCrashFallbackNotice = false
-                    webError = null
-                    isEditorReady = false
-                    useLocalFallbackCanvas = false
-                },
-                label = { Text("Draw.io Web") }
-            )
-            FilterChip(
-                selected = useLocalFallbackCanvas,
-                onClick = {
-                    useLocalFallbackCanvas = true
-                },
-                label = { Text("ER Canvas") }
-            )
-            if (rendererCrashFallbackNotice) {
-                Text(
-                    text = "Auto-switched to safe ER Canvas",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = AmberGold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -282,7 +248,7 @@ fun DrawIoLabScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Diagram Editor Surface (Crash-safe Draw.io WebView OR Native ER Canvas)
+        // Embedded Original Draw.io System (with crash recovery & offline fallback only on error)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -291,42 +257,81 @@ fun DrawIoLabScreen(
                 .background(DeepNavySurface)
                 .border(1.dp, BorderSlate, RoundedCornerShape(16.dp))
         ) {
-            if (useLocalFallbackCanvas) {
-                LocalDrawIoCanvas(
-                    challengeId = selectedChallenge.id,
-                    xmlSource = latestXml,
-                    onXmlUpdated = { updated -> latestXml = updated },
-                    modifier = Modifier.fillMaxSize()
-                )
+            if (useOfflineFallback) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(ElevatedNavyCard)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Offline ER Mode",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AmberGold
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                useOfflineFallback = false
+                                webError = null
+                                isEditorReady = false
+                                crashRetryCount = 0
+                                webViewInstanceKey++
+                            },
+                            modifier = Modifier.height(34.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                        ) {
+                            Text("Reconnect Draw.io", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                    LocalDrawIoCanvas(
+                        challengeId = selectedChallenge.id,
+                        xmlSource = latestXml,
+                        onXmlUpdated = { updated -> latestXml = updated },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
+                }
             } else {
-                DrawIoWebView(
-                    starterXml = selectedChallenge.starterXml,
-                    onWebViewReady = { wv -> webViewRef = wv },
-                    onEditorInitialized = {
-                        isEditorReady = true
-                        webError = null
-                    },
-                    onAutosaveXml = { xml ->
-                        if (xml.isNotBlank()) latestXml = xml
-                    },
-                    onExportCompleted = { bitmap, exportedXml ->
-                        isExporting = false
-                        val finalXml = exportedXml?.takeIf { it.isNotBlank() } ?: latestXml
-                        onAnalyzeDiagram(bitmap, finalXml)
-                    },
-                    onLoadError = { err ->
-                        webError = err
-                    },
-                    onRendererCrashed = {
-                        Log.w("DrawIoLab", "WebView renderer process terminated; switching safely to LocalDrawIoCanvas.")
-                        webViewRef = null
-                        isEditorReady = false
-                        isExporting = false
-                        rendererCrashFallbackNotice = true
-                        useLocalFallbackCanvas = true
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                key(webViewInstanceKey) {
+                    DrawIoWebView(
+                        starterXml = latestXml,
+                        onWebViewReady = { wv -> webViewRef = wv },
+                        onEditorInitialized = {
+                            isEditorReady = true
+                            webError = null
+                            crashRetryCount = 0
+                        },
+                        onAutosaveXml = { xml ->
+                            if (xml.isNotBlank()) latestXml = xml
+                        },
+                        onExportCompleted = { bitmap, exportedXml ->
+                            isExporting = false
+                            val finalXml = exportedXml?.takeIf { it.isNotBlank() } ?: latestXml
+                            onAnalyzeDiagram(bitmap, finalXml)
+                        },
+                        onLoadError = { err ->
+                            webError = err
+                        },
+                        onRendererCrashed = {
+                            Log.w("DrawIoLab", "WebView renderer terminated; recovering Draw.io (attempt=${crashRetryCount + 1})")
+                            webViewRef = null
+                            isEditorReady = false
+                            isExporting = false
+                            if (crashRetryCount < 2) {
+                                crashRetryCount++
+                                webError = null
+                                webViewInstanceKey++
+                            } else {
+                                webError = "Draw.io renderer ran out of memory on this device. Tap Retry to reload Draw.io."
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 if (!isEditorReady && webError == null) {
                     Box(
@@ -343,10 +348,6 @@ fun DrawIoLabScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            OutlinedButton(onClick = { useLocalFallbackCanvas = true }) {
-                                Text("Use Built-In ER Canvas Instead")
-                            }
                         }
                     }
                 }
@@ -368,40 +369,41 @@ fun DrawIoLabScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Draw.io Web failed to load",
+                                text = "Draw.io failed to load",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = webError ?: "Check network connectivity or switch to the built-in ER Canvas.",
+                                text = webError ?: "Check network connectivity and retry.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                OutlinedButton(
-                                    onClick = {
-                                        webError = null
-                                        isEditorReady = false
-                                        webViewRef?.loadUrl(DRAWIO_EMBED_URL)
-                                    }
-                                ) {
-                                    Icon(Icons.Rounded.Refresh, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Retry")
-                                }
                                 Button(
                                     onClick = {
                                         webError = null
-                                        useLocalFallbackCanvas = true
+                                        isEditorReady = false
+                                        crashRetryCount = 0
+                                        webViewInstanceKey++
                                     },
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = CyanPrimary,
                                         contentColor = Color(0xFF041C24)
                                     )
                                 ) {
-                                    Text("Open ER Canvas")
+                                    Icon(Icons.Rounded.Refresh, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Retry Draw.io")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        webError = null
+                                        useOfflineFallback = true
+                                    }
+                                ) {
+                                    Text("Offline Mode")
                                 }
                             }
                         }
@@ -421,11 +423,11 @@ fun DrawIoLabScreen(
             OutlinedButton(
                 onClick = {
                     latestXml = selectedChallenge.starterXml
-                    if (!useLocalFallbackCanvas && isEditorReady) {
+                    if (!useOfflineFallback && isEditorReady) {
                         sendDrawIoLoad(webViewRef, selectedChallenge.starterXml)
                     }
                 },
-                enabled = (useLocalFallbackCanvas || isEditorReady) && !isExporting && analysisState !is UiState.Loading,
+                enabled = (useOfflineFallback || isEditorReady) && !isExporting && analysisState !is UiState.Loading,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .height(50.dp)
@@ -443,7 +445,7 @@ fun DrawIoLabScreen(
             Button(
                 onClick = {
                     if (isExporting || analysisState is UiState.Loading) return@Button
-                    if (useLocalFallbackCanvas) {
+                    if (useOfflineFallback) {
                         val (parsedNodes, parsedEdges) = parseDrawIoXml(latestXml)
                         val bmp = renderErDiagramToBitmap(parsedNodes, parsedEdges)
                         onAnalyzeDiagram(bmp, latestXml)
@@ -452,7 +454,7 @@ fun DrawIoLabScreen(
                         if (isEditorReady && webViewRef != null) {
                             requestDrawIoExport(webViewRef)
                             scope.launch {
-                                delay(3500L)
+                                delay(4000L)
                                 if (isExporting) {
                                     isExporting = false
                                     val fallbackBitmap = webViewRef?.let { captureWebViewBitmap(it) }
@@ -710,7 +712,7 @@ private fun DrawIoWebView(
     onRendererCrashed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val latestStarterXml by remember(starterXml) { mutableStateOf(starterXml) }
+    val initialXml = remember { starterXml }
 
     AndroidView(
         modifier = modifier,
@@ -720,9 +722,9 @@ private fun DrawIoWebView(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
+                isFocusable = true
+                isFocusableInTouchMode = true
                 setBackgroundColor(android.graphics.Color.parseColor("#111830"))
-                // Software layer avoids GPU/ANGLE renderer crashes on emulated Chromium WebViews
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
                 }
@@ -730,9 +732,11 @@ private fun DrawIoWebView(
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
+                    databaseEnabled = true
+                    allowContentAccess = true
                     useWideViewPort = true
                     loadWithOverviewMode = true
-                    builtInZoomControls = true
+                    builtInZoomControls = false
                     displayZoomControls = false
                     cacheMode = WebSettings.LOAD_DEFAULT
                     mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
@@ -747,18 +751,9 @@ private fun DrawIoWebView(
                         fun onDrawIoMessage(rawJson: String) {
                             try {
                                 val json = JSONObject(rawJson)
-                                val event = json.optString("event")
-                                when (event) {
-                                    "configure" -> {
-                                        post {
-                                            sendDrawIoConfigure(this@apply)
-                                        }
-                                    }
+                                when (json.optString("event")) {
                                     "init" -> {
-                                        post {
-                                            onEditorInitialized()
-                                            sendDrawIoLoad(this@apply, latestStarterXml)
-                                        }
+                                        post { onEditorInitialized() }
                                     }
                                     "autosave", "save" -> {
                                         val xml = json.optString("xml")
@@ -781,23 +776,14 @@ private fun DrawIoWebView(
 
                 webChromeClient = WebChromeClient()
                 webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        super.onPageFinished(view, url)
-                        val bridgeJs = """
-                            (function() {
-                              if (window.__dbquestDrawIoBound) return;
-                              window.__dbquestDrawIoBound = true;
-                              window.addEventListener('message', function(evt) {
-                                try {
-                                  var data = typeof evt.data === 'string' ? JSON.parse(evt.data) : evt.data;
-                                  if (data && data.event && window.AndroidDrawIo) {
-                                    window.AndroidDrawIo.onDrawIoMessage(JSON.stringify(data));
-                                  }
-                                } catch (e) {}
-                              });
-                            })();
-                        """.trimIndent()
-                        view?.evaluateJavascript(bridgeJs, null)
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): Boolean {
+                        val host = request?.url?.host.orEmpty()
+                        return !(host.endsWith("diagrams.net") ||
+                            host.endsWith("draw.io") ||
+                            host == "appassets.androidplatform.net")
                     }
 
                     override fun onReceivedError(
@@ -806,7 +792,8 @@ private fun DrawIoWebView(
                         error: WebResourceError?
                     ) {
                         super.onReceivedError(view, request, error)
-                        if (request?.isForMainFrame == true) {
+                        val urlStr = request?.url?.toString().orEmpty()
+                        if (request?.isForMainFrame == true || urlStr.contains("embed.diagrams.net")) {
                             onLoadError(error?.description?.toString() ?: "Unable to connect to Draw.io")
                         }
                     }
@@ -820,7 +807,7 @@ private fun DrawIoWebView(
                         } else {
                             true
                         }
-                        Log.e("DrawIoWebView", "Chromium render process gone (didCrash=$crashed); recovering gracefully.")
+                        Log.e("DrawIoWebView", "Chromium render process gone (didCrash=$crashed); recovering Draw.io.")
                         try {
                             (view?.parent as? ViewGroup)?.removeView(view)
                             view?.destroy()
@@ -832,7 +819,13 @@ private fun DrawIoWebView(
                 }
 
                 onWebViewReady(this)
-                loadUrl(DRAWIO_EMBED_URL)
+                loadDataWithBaseURL(
+                    DRAWIO_BASE_URL,
+                    buildDrawIoHostHtml(initialXml),
+                    "text/html",
+                    "UTF-8",
+                    null
+                )
             }
         },
         onRelease = { webView ->
@@ -846,35 +839,103 @@ private fun DrawIoWebView(
     )
 }
 
-private fun sendDrawIoConfigure(webView: WebView?) {
-    val payload = JSONObject().apply {
-        put("action", "configure")
-        put("config", JSONObject().apply {
-            put("defaultLibraries", "er;general")
-        })
-    }.toString()
-    val escaped = JSONObject.quote(payload)
-    webView?.evaluateJavascript("window.postMessage($escaped, '*');", null)
+private fun buildDrawIoHostHtml(initialXml: String): String {
+    val quotedXml = JSONObject.quote(initialXml).replace("</", "<\\/")
+    return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8"/>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+          <style>
+            html, body {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+              background-color: #111830;
+            }
+            iframe {
+              border: 0;
+              width: 100%;
+              height: 100%;
+              display: block;
+            }
+          </style>
+        </head>
+        <body>
+          <iframe id="drawioFrame" allow="clipboard-read; clipboard-write"></iframe>
+          <script>
+            (function() {
+              var frame = document.getElementById('drawioFrame');
+              var editorReady = false;
+              var pendingXml = $quotedXml;
+
+              function postToEditor(obj) {
+                if (frame && frame.contentWindow) {
+                  frame.contentWindow.postMessage(JSON.stringify(obj), '*');
+                }
+              }
+
+              window.loadDrawIoXml = function(xml) {
+                pendingXml = xml;
+                if (editorReady && xml) {
+                  postToEditor({ action: 'load', xml: xml, autosave: 1 });
+                }
+              };
+
+              window.exportDrawIoPng = function() {
+                if (editorReady) {
+                  postToEditor({ action: 'export', format: 'png', xml: true, spin: 'Exporting diagram...' });
+                }
+              };
+
+              window.addEventListener('message', function(evt) {
+                if (!evt.data) return;
+                var msg;
+                try {
+                  msg = typeof evt.data === 'string' ? JSON.parse(evt.data) : evt.data;
+                } catch (e) {
+                  return;
+                }
+                if (!msg || !msg.event) return;
+
+                if (msg.event === 'configure') {
+                  postToEditor({
+                    action: 'configure',
+                    config: {
+                      defaultLibraries: 'er;general',
+                      enabledLibraries: ['er', 'general', 'uml']
+                    }
+                  });
+                } else if (msg.event === 'init') {
+                  editorReady = true;
+                  if (pendingXml) {
+                    postToEditor({ action: 'load', xml: pendingXml, autosave: 1 });
+                  }
+                }
+
+                if (window.AndroidDrawIo) {
+                  window.AndroidDrawIo.onDrawIoMessage(JSON.stringify(msg));
+                }
+              });
+
+              frame.src = '$DRAWIO_IFRAME_URL';
+            })();
+          </script>
+        </body>
+        </html>
+    """.trimIndent()
 }
 
 private fun sendDrawIoLoad(webView: WebView?, xml: String) {
-    val payload = JSONObject().apply {
-        put("action", "load")
-        put("xml", xml)
-        put("autosave", 1)
-    }.toString()
-    val escaped = JSONObject.quote(payload)
-    webView?.evaluateJavascript("window.postMessage($escaped, '*');", null)
+    val quotedXml = JSONObject.quote(xml)
+    webView?.evaluateJavascript("if (window.loadDrawIoXml) window.loadDrawIoXml($quotedXml);", null)
 }
 
 private fun requestDrawIoExport(webView: WebView?) {
-    val payload = JSONObject().apply {
-        put("action", "export")
-        put("format", "png")
-        put("spin", "Exporting diagram...")
-    }.toString()
-    val escaped = JSONObject.quote(payload)
-    webView?.evaluateJavascript("window.postMessage($escaped, '*');", null)
+    webView?.evaluateJavascript("if (window.exportDrawIoPng) window.exportDrawIoPng();", null)
 }
 
 private fun decodeBase64DataUrl(dataUrl: String): Bitmap? {

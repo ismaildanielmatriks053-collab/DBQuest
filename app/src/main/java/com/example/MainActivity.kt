@@ -8,7 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -234,6 +237,9 @@ private fun DbQuestApp(
     val isTutorResponding by viewModel.isTutorResponding.collectAsStateWithLifecycle()
     val chatError by viewModel.chatError.collectAsStateWithLifecycle()
 
+    val density = LocalDensity.current
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val useNavRail = maxWidth >= 680.dp
 
@@ -241,7 +247,7 @@ private fun DbQuestApp(
             containerColor = MidnightBg,
             contentWindowInsets = WindowInsets.safeDrawing,
             bottomBar = {
-                if (!useNavRail && activeQuiz == null && quizOutcome == null) {
+                if (!useNavRail && !isImeVisible && activeQuiz == null && quizOutcome == null) {
                     NavigationBar(
                         containerColor = DeepNavySurface,
                         tonalElevation = 0.dp
@@ -276,6 +282,7 @@ private fun DbQuestApp(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding)
             ) {
                 if (useNavRail && activeQuiz == null && quizOutcome == null) {
                     NavigationRail(containerColor = DeepNavySurface) {

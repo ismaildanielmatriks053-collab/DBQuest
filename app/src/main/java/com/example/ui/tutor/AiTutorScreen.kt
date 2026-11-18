@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -47,10 +49,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.example.R
 import com.example.model.ChatMessage
@@ -60,6 +69,7 @@ import com.example.ui.theme.ElevatedNavyCard
 import com.example.ui.theme.HighSurfaceNavy
 import com.example.ui.theme.MidnightBg
 import com.example.ui.theme.RoseLoss
+import com.example.ui.theme.TextSecondary
 import com.example.ui.theme.VioletSecondary
 
 private val quickTopics = listOf(
@@ -81,8 +91,10 @@ fun AiTutorScreen(
 ) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val isImeVisible = WindowInsets.ime.getBottom(density) > 0
 
-    LaunchedEffect(messages.size, messages.lastOrNull()?.text?.length) {
+    LaunchedEffect(messages.size, messages.lastOrNull()?.text?.length, isImeVisible) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.lastIndex)
         }
@@ -147,27 +159,29 @@ fun AiTutorScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Hide quick-topic pills while typing with soft keyboard so messages + input have full room
+            if (!isImeVisible) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Quick Topic Suggestions
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(vertical = 2.dp)
-            ) {
-                items(quickTopics) { prompt ->
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(ElevatedNavyCard)
-                            .border(1.dp, BorderSlate, RoundedCornerShape(50))
-                            .clickable(enabled = !isResponding) { onSendMessage(prompt) }
-                            .padding(horizontal = 12.dp, vertical = 7.dp)
-                    ) {
-                        Text(
-                            text = prompt,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = CyanPrimary
-                        )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(vertical = 2.dp)
+                ) {
+                    items(quickTopics) { prompt ->
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(ElevatedNavyCard)
+                                .border(1.dp, BorderSlate, RoundedCornerShape(50))
+                                .clickable(enabled = !isResponding) { onSendMessage(prompt) }
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = prompt,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = CyanPrimary
+                            )
+                        }
                     }
                 }
             }
@@ -215,13 +229,15 @@ fun AiTutorScreen(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = Color.White),
                     placeholder = {
                         Text(
                             text = stringResource(R.string.ask_tutor_hint),
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
                         )
                     },
-                    maxLines = 3,
+                    maxLines = 4,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
@@ -233,7 +249,12 @@ fun AiTutorScreen(
                     ),
                     shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = ElevatedNavyCard,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        cursorColor = CyanPrimary,
+                        focusedPlaceholderColor = TextSecondary,
+                        unfocusedPlaceholderColor = TextSecondary,
+                        focusedContainerColor = HighSurfaceNavy,
                         unfocusedContainerColor = ElevatedNavyCard,
                         focusedBorderColor = CyanPrimary,
                         unfocusedBorderColor = BorderSlate
@@ -313,11 +334,41 @@ private fun TutorMessageBubble(message: ChatMessage) {
                 )
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
+            val formattedText = remember(message.text) {
+                formatTutorMessage(message.text.ifBlank { "…" })
+            }
             Text(
-                text = message.text.ifBlank { "…" },
+                text = formattedText,
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White
             )
+        }
+    }
+}
+
+private fun formatTutorMessage(raw: String): AnnotatedString {
+    return buildAnnotatedString {
+        val pattern = Regex("""\*\*(.+?)\*\*|`([^`]+)`""")
+        var lastIndex = 0
+        for (match in pattern.findAll(raw)) {
+            if (match.range.first > lastIndex) {
+                append(raw.substring(lastIndex, match.range.first).replace("**", ""))
+            }
+            val boldPart = match.groups[1]?.value
+            val codePart = match.groups[2]?.value
+            if (boldPart != null) {
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color.White)) {
+                    append(boldPart)
+                }
+            } else if (codePart != null) {
+                withStyle(SpanStyle(fontFamily = FontFamily.Monospace, color = CyanPrimary, fontWeight = FontWeight.SemiBold)) {
+                    append(codePart)
+                }
+            }
+            lastIndex = match.range.last + 1
+        }
+        if (lastIndex < raw.length) {
+            append(raw.substring(lastIndex).replace("**", ""))
         }
     }
 }
